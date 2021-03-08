@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>Static Template</title>
+  </head>
+  <body>
+    <main id="root"></main>
+
+    <script>
+      const mountOn = (id, App) => {
+        document.querySelector(id).appendChild(App());
+      };
+
+      const createOption = (assignOptionOnElement) => {
+        return (...params) => {
+          return {
+            assignOptionOnElement: (element) =>
+              assignOptionOnElement(element, ...params)
+          };
+        };
+      };
+
+      const createTag = (tagName) => (...options) => {
+        const element = document.createElement(tagName);
+
+        options.forEach((option) => {
+          const { assignOptionOnElement } = option;
+          assignOptionOnElement(element);
+        });
+
+        return element;
+      };
+
+      const createState = (initialState) => {
+        let state = initialState;
+        const observers = [];
+        const addObserver = (observer) => {
+          observers.push(observer);
+        };
+
+        return {
+          addObserver,
+          set value(newState) {
+            state = newState;
+            observers.forEach((observer) => {
+              observer(newState);
+            });
+            return state;
+          },
+          get value() {
+            return state;
+          }
+        };
+      };
+    </script>
+
+    <script>
+      const p = createTag("p");
+
+      const div = createTag("div");
+
+      const button = createTag("button");
+
+      const text = createOption((element, text) => {
+        element.textContent += text;
+      });
+
+      const children = createOption((element, ...params) => {
+        params.forEach((child) => {
+          element.appendChild(child);
+        });
+      });
+
+      const attrs = createOption((element, attrs) => {
+        Object.assign(element, attrs);
+      });
+
+      const observable = createOption((element, state, onChange) => {
+        const observableElement = onChange(state);
+        element.appendChild(observableElement);
+        state.addObserver(() => {
+          element.replaceChildren(onChange(state));
+        });
+      });
+    </script>
+
+    <script>
+      const App = () => {
+        let count = createState(0);
+
+        count.addObserver(console.log);
+
+        function add() {
+          count.value++;
+        }
+
+        return div(
+          children(
+            p(text("teste"), text("teste"), text("teste")),
+            p(text("teste")),
+            div(
+              // observable is a option, so it MUST be inside a tag
+              // note: childs is a option
+              observable(count, ({ value }) => {
+                return p(text(`${value}`));
+              })
+            ),
+            button(
+              attrs({
+                onclick: add
+              }),
+              text("count")
+            )
+          )
+        );
+      };
+
+      mountOn("#root", App);
+    </script>
+  </body>
+</html>
